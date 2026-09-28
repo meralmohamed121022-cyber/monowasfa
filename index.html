@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>فاحص وصفتي المباشر</title>
+    <!-- استخدام خط تجوال لدعم العربية بشكل ممتاز -->
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700&display=swap" rel="stylesheet">
+    <script src="https://unpkg.com/html5-qrcode"></script>
+    <style>
+        :root {
+            --primary: #00877a; /* لون وصفتي الأخضر/الأزرق */
+            --primary-hover: #006a5f;
+            --secondary: #f4f7f6;
+            --text-dark: #2c3e50;
+            --text-light: #7f8c8d;
+            --white: #ffffff;
+            --shadow: 0 8px 30px rgba(0,0,0,0.08);
+            --border-radius: 16px;
+        }
+        
+        body { 
+            font-family: 'Tajawal', sans-serif; 
+            background: var(--secondary); 
+            padding: 20px; 
+            margin: 0;
+            color: var(--text-dark);
+        }
+        
+        .container {
+            max-width: 900px;
+            margin: 40px auto;
+        }
+        
+        .card { 
+            background: var(--white); 
+            padding: 40px; 
+            border-radius: var(--border-radius); 
+            box-shadow: var(--shadow); 
+            margin-bottom: 25px; 
+            text-align: center;
+        }
+        
+        h2 { color: var(--primary); margin-top: 0; font-size: 28px; }
+        h3 { color: var(--primary); margin-top: 0; font-size: 22px; border-bottom: 2px solid #eee; padding-bottom: 10px;}
+        
+        /* Form Inputs */
+        .input-group {
+            margin: 30px 0;
+            text-align: right;
+        }
+        .input-group label {
+            display: block;
+            margin-bottom: 10px;
+            font-weight: 700;
+            font-size: 16px;
+        }
+        input { 
+            width: 100%; 
+            padding: 16px 20px; 
+            border-radius: 12px; 
+            border: 2px solid #e0e0e0; 
+            font-size: 16px; 
+            box-sizing: border-box;
+            font-family: inherit;
+            transition: all 0.3s;
+            direction: ltr;
+            text-align: right;
+        }
+        input:focus {
+            border-color: var(--primary);
+            outline: none;
+            box-shadow: 0 0 0 4px rgba(0, 135, 122, 0.15);
+        }
+        
+        .flex-row {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn-scan {
+            background: #34495e;
+            width: auto;
+            white-space: nowrap;
+            padding: 16px 25px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(52, 73, 94, 0.3);
+        }
+        .btn-scan:hover {
+            background: #2c3e50;
+            box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
+        }
+
+        #reader {
+            width: 100%;
+            border-radius: 12px;
+            overflow: hidden;
+            margin-bottom: 20px;
+            border: none;
+        }
+        
+        button { 
+            background: var(--primary); 
+            color: white; 
+            border: none; 
+            cursor: pointer; 
+            font-weight: 700; 
+            width: 100%; 
+            padding: 18px;
+            border-radius: 12px;
+            font-size: 18px;
+            font-family: inherit;
+            transition: transform 0.2s, background 0.3s, box-shadow 0.2s;
+            box-shadow: 0 4px 15px rgba(0, 135, 122, 0.3);
+        }
+        button:hover { 
+            background: var(--primary-hover); 
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(0, 135, 122, 0.4);
+        }
+        
+        /* Modal & Layout */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; backdrop-filter: blur(5px); }
+        .modal-body { 
+            background: var(--secondary); 
+            width: 90%; 
+            max-width: 1000px; 
+            margin: 2vh auto; 
+            padding: 0; 
+            border-radius: var(--border-radius); 
+            height: 90vh; 
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3); 
+            overflow: hidden;
+        }
+        .modal-header { 
+            padding: 20px 30px; 
+            background: white; 
+            border-bottom: 1px solid #eee; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+        }
+        .close-btn { 
+            font-size: 35px; 
+            cursor: pointer; 
+            color: #bdc3c7; 
+            transition: color 0.3s; 
+            line-height: 1;
+        }
+        .close-btn:hover { color: #e74c3c; }
+        .modal-content { 
+            padding: 30px; 
+            overflow-y: auto;
+            flex-grow: 1;
+        }
+
+        /* Status */
+        .status { font-weight: bold; padding: 25px; border-radius: 12px; text-align: center; margin: 40px auto; font-size: 20px; max-width: 500px;}
+        .loading { background: #e3f2fd; color: #0d47a1; border: 1px solid #bbdefb; }
+        .error { background: #ffebee; color: #c62828; border: 1px solid #ffcdd2;}
+
+        /* Patient Info Grid */
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 20px;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            margin-bottom: 30px;
+        }
+        .info-item { display: flex; flex-direction: column; }
+        .info-label { font-size: 14px; color: var(--text-light); margin-bottom: 8px; }
+        .info-value { font-size: 17px; font-weight: 700; color: var(--text-dark); }
+        
+        /* QR Code */
+        .qr-section {
+            text-align: center;
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            margin-bottom: 30px;
+        }
+        .qr-image { max-width: 220px; border-radius: 10px; border: 1px solid #eee; padding: 10px; background: #fff;}
+
+        /* Drugs List */
+        .drug-card {
+            background: white;
+            border-right: 6px solid var(--primary);
+            padding: 25px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03);
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .drug-card:hover { 
+            transform: translateX(-5px); 
+            box-shadow: 0 8px 25px rgba(0,0,0,0.06);
+        }
+        .drug-name { 
+            font-size: 20px; 
+            font-weight: 700; 
+            color: var(--text-dark); 
+            margin-bottom: 15px; 
+            direction: ltr; 
+            text-align: right; 
+        }
+        .drug-instructions { 
+            background: #f8f9fa; 
+            padding: 18px; 
+            border-radius: 10px; 
+            font-size: 16px; 
+            line-height: 1.7; 
+            color: #2c3e50; 
+            border-right: 3px solid #bdc3c7;
+        }
+        .drug-meta { 
+            display: flex; 
+            gap: 15px; 
+            margin-top: 15px; 
+            font-size: 15px; 
+            color: var(--text-light); 
+            flex-wrap: wrap;
+        }
+        .drug-meta span { 
+            background: #ecf0f1; 
+            padding: 8px 12px; 
+            border-radius: 8px; 
+            font-weight: 500;
+        }
+
+        /* History Table */
+        .history-card { 
+            background: white; 
+            padding: 25px; 
+            border-radius: 12px; 
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); 
+            overflow-x: auto; 
+        }
+        table { width: 100%; border-collapse: collapse; min-width: 600px; }
+        th, td { padding: 16px; text-align: right; border-bottom: 1px solid #f0f0f0; }
+        th { font-weight: 700; color: var(--text-light); font-size: 15px; background: #fafafa;}
+        tr:hover { background-color: #fcfcfc; }
+        .status-badge { padding: 8px 14px; border-radius: 20px; font-size: 13px; font-weight: 700; }
+        .status-5 { background: #e8f5e9; color: #2e7d32; } /* المصروفة */
+        .status-3 { background: #e3f2fd; color: #1565c0; } 
+        .status-other { background: #fff3e0; color: #ef6c00; } 
+
+        .btn-copy {
+            background: #ecf0f1;
+            color: #2c3e50;
+            border: none;
+            padding: 5px 12px;
+            font-size: 13px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin-right: 10px;
+            width: auto;
+            box-shadow: none;
+            font-weight: bold;
+            transition: background 0.2s;
+            display: inline-block;
+        }
+        .btn-copy:hover {
+            background: #bdc3c7;
+            transform: none;
+            box-shadow: none;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card">
+        <h2>فاحص وصفتي المباشر 🏥</h2>
+        <p style="color: var(--text-light); font-size: 17px; margin-bottom: 20px;">
+            أدخل كود الاستجابة السريعة (QR Code) الخاص بالوصفة لاستعراض بياناتها بشكل مفصل.
+        </p>
+        
+        <div id="reader" style="display: none;"></div>
+
+        <div class="input-group">
+            <label>كود الـ QR للوصفة:</label>
+            <div class="flex-row">
+                <input type="text" id="qrInput" value="ef28b9af82594c0caeab43feda5d9c91" placeholder="أدخل الكود هنا...">
+                <button type="button" class="btn-scan" onclick="startScanner()">📷 مسح</button>
+            </div>
+        </div>
+
+        <button onclick="executeFetch()">عرض تفاصيل الوصفة 🚀</button>
+    </div>
+</div>
+
+<!-- Modal -->
+<div id="resultModal" class="modal">
+    <div class="modal-body">
+        <div class="modal-header">
+            <h2 style="margin: 0; font-size: 24px;">📄 تفاصيل الوصفة الطبية</h2>
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+        </div>
+        
+        <div id="statusMessage" class="status loading">جاري جلب البيانات من منصة وصفتي...</div>
+        
+        <div id="contentArea" class="modal-content" style="display:none;">
+            <!-- QR Code Section -->
+            <div id="qrSection" class="qr-section"></div>
+
+            <!-- Patient Info -->
+            <h3>👤 بيانات المريض والوصفة</h3>
+            <div id="patientInfo" class="info-grid"></div>
+
+            <!-- Drugs -->
+            <h3 style="margin-top: 20px;">💊 الأدوية الموصوفة</h3>
+            <div id="drugsList"></div>
+
+            <!-- History -->
+            <h3 style="margin-top: 40px;">📅 سجل الوصفات السابقة</h3>
+            <div id="historyResult" class="history-card"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+let html5QrcodeScanner = null;
+
+function startScanner() {
+    const readerDiv = document.getElementById('reader');
+    readerDiv.style.display = 'block';
+    
+    if(!html5QrcodeScanner) {
+        html5QrcodeScanner = new Html5QrcodeScanner(
+            "reader",
+            { fps: 10, qrbox: {width: 250, height: 250} },
+            /* verbose= */ false);
+            
+        html5QrcodeScanner.render(onScanSuccess, onScanFailure);
+    }
+}
+
+function onScanSuccess(decodedText, decodedResult) {
+    // إيقاف الكاميرا بعد القراءة الناجحة
+    if(html5QrcodeScanner) {
+        html5QrcodeScanner.clear();
+        document.getElementById('reader').style.display = 'none';
+        html5QrcodeScanner = null;
+    }
+    
+    // استخراج الكود فقط في حال كان الرابط كاملاً
+    let code = decodedText;
+    if (code.includes('/')) {
+        const parts = code.split('/');
+        code = parts[parts.length - 1];
+    }
+    
+    document.getElementById('qrInput').value = code;
+    executeFetch(); // جلب البيانات تلقائياً
+}
+
+function onScanFailure(error) {
+  // تجاهل الأخطاء أثناء استمرار الكاميرا بالبحث عن كود
+}
+
+function copyToClipboard(text, btnElement) {
+    if (!text) return;
+    navigator.clipboard.writeText(text).then(() => {
+        const originalText = btnElement.innerText;
+        btnElement.innerText = '✅ تم النسخ';
+        btnElement.style.background = '#d4edda';
+        btnElement.style.color = '#155724';
+        setTimeout(() => {
+            btnElement.innerText = originalText;
+            btnElement.style.background = '#ecf0f1';
+            btnElement.style.color = '#2c3e50';
+        }, 2000);
+    }).catch(err => {
+        console.error('فشل النسخ', err);
+        alert('حدث خطأ أثناء النسخ');
+    });
+}
+
+async function executeFetch() {
+    const qr = document.getElementById('qrInput').value.trim();
+
+    if (!qr) {
+        alert('يرجى إدخال كود الـ QR أولاً');
+        return;
+    }
+
+    const modal = document.getElementById('resultModal');
+    const statusMsg = document.getElementById('statusMessage');
+    const contentArea = document.getElementById('contentArea');
+
+    modal.style.display = 'block';
+    statusMsg.className = 'status loading';
+    statusMsg.innerText = 'جاري إرسال الطلب وجلب البيانات... ⏳';
+    statusMsg.style.display = 'block';
+    contentArea.style.display = 'none';
+
+    try {
+        // نكتفي بإرسال الكود فقط، التوكن سيتم إدارته عبر السيرفر الوسيط
+        const response = await fetch(`/api/patient-data?qrCode=${qr}`);
+        const data = await response.json();
+
+        if (!data.success) {
+            throw new Error(data.message || data.error || 'حدث خطأ أثناء الجلب');
+        }
+
+        statusMsg.style.display = 'none';
+        contentArea.style.display = 'block';
+
+        // وصفتي ترجع البيانات أحيانا داخل كائن patient وأحيانا مباشرة
+        const patientData = data.patient?.patient || data.patient;
+        const historyData = data.history?.patient_history || data.history;
+
+        renderPatientData(patientData);
+        renderHistoryData(historyData);
+
+    } catch (err) {
+        statusMsg.style.display = 'block';
+        statusMsg.className = 'status error';
+        statusMsg.innerText = '⚠️ خطأ: ' + err.message;
+        contentArea.style.display = 'none';
+    }
+}
+
+function renderPatientData(patient) {
+    if (!patient) return;
+
+    // 1. QR Code
+    const qrSection = document.getElementById('qrSection');
+    if (patient.qr_code) {
+        // وصفتي تعيد الـ QR كـ base64
+        const refNum = patient.ErxReferenceNumber || '';
+        qrSection.innerHTML = `
+            <img src="${patient.qr_code}" alt="QR Code" class="qr-image">
+            <p style="margin-top:15px; color:#34495e; font-size:16px; font-weight: bold; display: flex; align-items: center; justify-content: center;">
+                رقم الوصفة: <span style="color: var(--primary); margin: 0 10px;">${refNum || 'غير متوفر'}</span>
+                ${refNum ? `<button onclick="copyToClipboard('${refNum}', this)" class="btn-copy">📋 نسخ</button>` : ''}
+            </p>
+        `;
+        qrSection.style.display = 'block';
+    } else {
+        qrSection.style.display = 'none';
+    }
+
+    // 2. Patient Info Grid
+    const infoGrid = document.getElementById('patientInfo');
+    infoGrid.innerHTML = `
+        <div class="info-item">
+            <span class="info-label">اسم المريض</span>
+            <span class="info-value">${patient.patient_first_name || patient.PatientENName || 'غير معروف'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">رقم الهوية</span>
+            <span class="info-value" style="direction: ltr; text-align: right;">${patient.PatientID || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">تاريخ الوصفة</span>
+            <span class="info-value" style="direction: ltr; text-align: right;">${patient.CreatedAt || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">اسم الطبيب</span>
+            <span class="info-value">${patient.PhysicianARName || patient.PhysicianENName || '-'}</span>
+        </div>
+        <div class="info-item">
+            <span class="info-label">المنشأة الصحية</span>
+            <span class="info-value">${patient.provider?.display_name || patient.PhysicianFacilityARName || '-'}</span>
+        </div>
+    `;
+
+    // 3. Drugs
+    const drugsList = document.getElementById('drugsList');
+    let drugsHtml = '';
+    
+    if (patient.Activity && Array.isArray(patient.Activity) && patient.Activity.length > 0) {
+        patient.Activity.forEach(act => {
+            const generic = act.Generic || {};
+            const drugName = generic.DrugName || 'دواء غير معروف';
+            const instructions = generic.ArabicInstructions || generic.EnglishInstructions || 'لا توجد تعليمات';
+            const qty = generic.Quantity || '-';
+            const unit = generic.DosageUnit || '-';
+            const duration = generic.Duration ? `${generic.Duration} أيام` : '-';
+            
+            drugsHtml += `
+                <div class="drug-card">
+                    <div class="drug-name">${drugName}</div>
+                    <div class="drug-instructions">
+                        <span style="font-size: 20px;">📌</span> <strong>التعليمات:</strong> ${instructions}
+                    </div>
+                    <div class="drug-meta">
+                        <span>📦 الكمية: ${qty} ${unit}</span>
+                        <span>⏱️ المدة: ${duration}</span>
+                    </div>
+                </div>
+            `;
+        });
+    } else {
+        drugsHtml = '<div style="padding: 30px; background: #fff; border-radius: 12px; text-align: center; color: #7f8c8d; font-size: 16px;">لا توجد أدوية مسجلة في هذه الوصفة.</div>';
+    }
+    drugsList.innerHTML = drugsHtml;
+}
+
+function renderHistoryData(history) {
+    const container = document.getElementById('historyResult');
+    if (!history || !Array.isArray(history) || history.length === 0) {
+        container.innerHTML = '<div style="text-align: center; color: #7f8c8d; font-size: 16px;">لا يوجد سجل للوصفات السابقة.</div>';
+        return;
+    }
+
+    let tableHtml = `
+        <table>
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>رقم المرجع (الوصفة)</th>
+                    <th>المنشأة الصحية</th>
+                    <th>الحالة</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    history.forEach(item => {
+        let statusClass = 'status-other';
+        let statusText = 'غير مصروفة';
+        
+        if (item.ErxPrescriptionStatus === 5) {
+            statusClass = 'status-5';
+            statusText = 'مصروفة بالكامل';
+        } else if (item.ErxPrescriptionStatus === 3) {
+            statusClass = 'status-3';
+            statusText = 'مصروفة جزئياً';
+        }
+
+        tableHtml += `
+            <tr>
+                <td style="direction: ltr; text-align: right; color: #7f8c8d;">${item.CreatedAt || '-'}</td>
+                <td style="font-weight: 700; color: var(--primary);">
+                    ${item.ErxReferenceNumber || '-'}
+                    ${item.ErxReferenceNumber ? `<button onclick="copyToClipboard('${item.ErxReferenceNumber}', this)" class="btn-copy">📋 نسخ</button>` : ''}
+                </td>
+                <td>${item.PhysicianFacilityARName || item.PhysicianFacilityENName || '-'}</td>
+                <td><span class="status-badge ${statusClass}">${statusText}</span></td>
+            </tr>
+        `;
+    });
+
+    tableHtml += `</tbody></table>`;
+    container.innerHTML = tableHtml;
+}
+
+function closeModal() {
+    document.getElementById('resultModal').style.display = 'none';
+}
+
+// إغلاق النافذة عند النقر خارجها
+window.onclick = function(event) {
+    const modal = document.getElementById('resultModal');
+    if (event.target == modal) {
+        closeModal();
+    }
+}
+</script>
+
+</body>
+</html>
