@@ -1,5 +1,3 @@
-const axios = require('axios');
-
 const DEFAULT_TOKEN = "TD2xCnLqpgYaveSKxSyhFTee2NXb1GtB"; 
 
 export default async function handler(req, res) {
@@ -38,25 +36,31 @@ export default async function handler(req, res) {
         const historyUrl = `https://ul-api.wasfaty.sa/api/v1/patient_history/get_patient_history_by_date_range?from_date=01/01/2026&to_date=28/09/2026&url_reference=${qrCode}`;
 
         const [patientRes, historyRes] = await Promise.allSettled([
-            axios.get(patientUrl, { headers, timeout: 10000 }),
-            axios.get(historyUrl, { headers, timeout: 10000 })
+            fetch(patientUrl, { headers, method: 'GET' }),
+            fetch(historyUrl, { headers, method: 'GET' })
         ]);
 
-        const patientData = patientRes.status === 'fulfilled' 
-            ? patientRes.value.data 
-            : { 
+        let patientData = null;
+        if (patientRes.status === 'fulfilled' && patientRes.value.ok) {
+            patientData = await patientRes.value.json();
+        } else {
+            patientData = { 
                 error: 'تعذر جلب البيانات الحالية', 
-                status: patientRes.reason?.response?.status || 'No Response',
-                details: patientRes.reason?.response?.data || patientRes.reason?.message 
-              };
+                status: patientRes.status === 'fulfilled' ? patientRes.value.status : 'Fetch Error',
+                details: patientRes.reason?.message || 'Unknown error'
+            };
+        }
 
-        const historyData = historyRes.status === 'fulfilled' 
-            ? historyRes.value.data 
-            : { 
+        let historyData = null;
+        if (historyRes.status === 'fulfilled' && historyRes.value.ok) {
+            historyData = await historyRes.value.json();
+        } else {
+            historyData = { 
                 error: 'تعذر جلب التاريخ', 
-                status: historyRes.reason?.response?.status || 'No Response',
-                details: historyRes.reason?.response?.data || historyRes.reason?.message 
-              };
+                status: historyRes.status === 'fulfilled' ? historyRes.value.status : 'Fetch Error',
+                details: historyRes.reason?.message || 'Unknown error'
+            };
+        }
 
         res.status(200).json({
             success: true,
