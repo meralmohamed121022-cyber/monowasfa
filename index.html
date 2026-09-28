@@ -92,6 +92,19 @@
             box-shadow: 0 6px 20px rgba(52, 73, 94, 0.4);
         }
 
+        .btn-clear {
+            background: #e74c3c;
+            width: auto;
+            white-space: nowrap;
+            padding: 16px 25px;
+            flex-shrink: 0;
+            box-shadow: 0 4px 15px rgba(231, 76, 60, 0.3);
+        }
+        .btn-clear:hover {
+            background: #c0392b;
+            box-shadow: 0 6px 20px rgba(231, 76, 60, 0.4);
+        }
+
         #reader {
             width: 100%;
             border-radius: 12px;
@@ -291,10 +304,11 @@
 
         <div class="input-group">
             <label>كود الـ QR للوصفة:</label>
-            <div class="flex-row">
-                <input type="text" id="qrInput" value="ef28b9af82594c0caeab43feda5d9c91" placeholder="أدخل الكود هنا...">
-                <button type="button" class="btn-scan" onclick="startScanner()">📷 مسح</button>
+            <div class="flex-row" style="margin-bottom: 15px; flex-wrap: wrap;">
+                <button type="button" class="btn-scan" onclick="startScanner()">📷 باركود سكان</button>
+                <button type="button" class="btn-clear" onclick="document.getElementById('qrInput').value = '';">🗑️ مسح النص</button>
             </div>
+            <input type="text" id="qrInput" placeholder="أدخل الكود أو الرابط هنا...">
         </div>
 
         <button onclick="executeFetch()">عرض تفاصيل الوصفة 🚀</button>
@@ -365,16 +379,28 @@ function stopScanner() {
     }
 }
 
+function extractCode(text) {
+    if (!text) return '';
+    text = text.trim();
+    try {
+        const url = new URL(text);
+        const paths = url.pathname.split('/').filter(Boolean);
+        return paths[paths.length - 1] || text;
+    } catch (e) {
+        if (text.includes('/')) {
+            const parts = text.split('/');
+            return parts[parts.length - 1];
+        }
+        return text;
+    }
+}
+
 function onScanSuccess(decodedText, decodedResult) {
     // إيقاف الكاميرا بعد القراءة الناجحة
     stopScanner();
     
-    // استخراج الكود فقط في حال كان الرابط كاملاً
-    let code = decodedText;
-    if (code.includes('/')) {
-        const parts = code.split('/');
-        code = parts[parts.length - 1];
-    }
+    // استخراج الكود باستخدام الدالة المحسنة
+    const code = extractCode(decodedText);
     
     document.getElementById('qrInput').value = code;
     executeFetch(); // جلب البيانات تلقائياً
@@ -403,12 +429,15 @@ function copyToClipboard(text, btnElement) {
 }
 
 async function executeFetch() {
-    const qr = document.getElementById('qrInput').value.trim();
+    let qr = document.getElementById('qrInput').value.trim();
 
     if (!qr) {
         alert('يرجى إدخال كود الـ QR أولاً');
         return;
     }
+    
+    // استخراج الكود بشكل ذكي
+    qr = extractCode(qr);
 
     const modal = document.getElementById('resultModal');
     const statusMsg = document.getElementById('statusMessage');
@@ -591,6 +620,13 @@ window.onclick = function(event) {
         closeModal();
     }
 }
+
+// دعم قارئ الباركود اليدوي (Physical Scanner) الذي يضغط Enter تلقائياً
+document.getElementById('qrInput').addEventListener('keypress', function (e) {
+    if (e.key === 'Enter') {
+        executeFetch();
+    }
+});
 </script>
 
 </body>
